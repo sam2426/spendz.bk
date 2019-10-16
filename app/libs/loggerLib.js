@@ -1,10 +1,10 @@
 'use strict'
 const logger = require('pino')()
-const moment = require('moment')
+const time = require('./timeLib')
 
 // myErrorFunction is a definition of how the errors will be formatted in our system
 let captureError = (errorMessage, errorOrigin, errorLevel) => {
-  let currentTime = moment()
+  let currentTime = time.now();
 
   let errorResponse = {
     timestamp: currentTime,
@@ -18,7 +18,7 @@ let captureError = (errorMessage, errorOrigin, errorLevel) => {
 } // end captureError
 
 let captureInfo = (message, origin, importance) => {
-  let currentTime = moment()
+  let currentTime = time.now();
 
   let infoMessage = {
     timestamp: currentTime,

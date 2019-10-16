@@ -10,7 +10,7 @@ let generateToken=(data,cb)=>{
             iat:Date.now(),
             exp:Math.floor(time.now() / 1000)+(60*60*24),
             sub:'authToken', //subject
-            iss:'edChat', // issuer
+            iss:'SamspendzApp', // issuer
             data:data
         }
         let tokenDetails={

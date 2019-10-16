@@ -3,6 +3,8 @@ const AuthModel = require('./../models/auth');
 
 const shortid = require('shortid');
 
+const friendsController = require('./friendsController');
+
 const check = require('../libs/checkLib');
 const logger = require('./../libs/loggerLib');
 const mailerLib = require('./../libs/mailerLib');
@@ -42,7 +44,7 @@ let signUpFunction = (req, res) => {
                     } else if (check.isEmpty(retrievedUserdetails)) {
                         console.log(req.body);
                         let newUser = new UserModel({
-                            userId: 'U' + shortid.generate(),
+                            userId: 'U-' + shortid.generate(),
                             firstName: req.body.firstName,
                             lastName: req.body.lastName || '',
                             gender: req.body.gender,
@@ -147,10 +149,7 @@ let loginFunction = (req, res) => {
                 } else if (isMatch) {
                     let retrievedUserDetailsObj = retrievedUserDetails.toObject();
                     delete retrievedUserDetailsObj.password;
-                    // delete retrievedUserDetailsObj._id;
-                    delete retrievedUserDetailsObj.__v;
-                    delete retrievedUserDetailsObj.createdOn;
-                    delete retrievedUserDetailsObj.modifiedOn;
+                    
                     logger.info('Password validated', 'Password Hash Check', 00);
                     resolve(retrievedUserDetailsObj);
                 } else {
@@ -222,6 +221,15 @@ let loginFunction = (req, res) => {
         .then(generateToken)
         .then(saveToken)
         .then((resolve) => {
+            delete resolve.userDetails._id;
+            delete resolve.userDetails.__v;
+            delete resolve.userDetails.createdOn;
+            delete resolve.userDetails.modifiedOn;
+            delete resolve.userDetails.friendList;
+            delete resolve.userDetails.otp;
+            delete resolve.userDetails.otpExpiry;
+            delete resolve.userDetails.groups;
+
             let apiResponse = response.generate(false, 'Login Successful', 200, resolve);
             res.send(apiResponse)
         })
@@ -236,7 +244,7 @@ const singleUpload = profilePicUploadLib.upload.single('image');
 let uploadImage = (req, res) => {
     singleUpload(req, res, (err) => {
         if (err) {
-            let apiResponse = apiResponse.generate(true, 'File Not Uploaded', 400, null);
+            let apiResponse = response.generate(true, 'File Not Uploaded', 400, null);
             res.send(apiResponse);
         } else {
             let apiResponse = response.generate(false, 'File Uploaded', 200, req.file.location);

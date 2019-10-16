@@ -57,7 +57,7 @@ const userSchema = new Schema({
         ref:'Friends',
         unique:true,
     },
-    group:{
+    groups:{
         type:[Schema.Types.ObjectId],
         ref:'SpendGrp'
     }
