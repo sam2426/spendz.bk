@@ -5,6 +5,9 @@ const logger = require('./loggerLib.js');
 const events = require('events');
 const eventEmitter = new events.EventEmitter();
 
+const UserModel = require('./../models/User');
+const friendsController = require('./../controllers/friendsController');
+
 const tokenLib = require("./tokenLib.js");
 const check = require("./checkLib.js");
 const response = require('./responseLib')
@@ -12,7 +15,6 @@ const response = require('./responseLib')
 let setServer = (server) => {
 
     // let allOnlineUsers = []
-    let friendReq=[];
 
     let io = socketio.listen(server);
 
@@ -20,100 +22,104 @@ let setServer = (server) => {
 
     myIo.on('connection',(socket) => {
 
-        console.log("on connection--emitting verify user");
+        console.log("on connection--functions are ready");
 
-        socket.emit("verifyUser", "");
+        // socket.emit("verifyUser", "");
 
-        // code to verify the user and make him online
-
-        socket.on('create-request',(userId,friendId)=>{
-            
+        socket.on('getFriends',(userId)=>{
+            console.log('getFriends running');
+            let friends=(userId)=>{
+                return new Promise((resolve,reject)=>{
+                    friendsController.usersFriend(userId,(err,response)=>{
+                        if(err){
+                            console.log("here it is "+err);
+                            reject('friends not found',err.message, 'userController:getUserDetails', 10);
+                        }
+                        else{
+                            resolve(response);
+                        }
+                    })
+                })
+            }
+            let findFriends=(arr)=>{
+                return new Promise((resolve,reject)=>{
+                    // let include='$in'
+                UserModel.find({'userId':{$in:arr}})
+                .select(' -__v -_id -password -otp -otpExpiry')
+                .populate('friendList')
+                .lean()
+                .exec((err, result) => {
+                    if (err) {
+                        reject('Failed To Find User Details',err.message, 'User Controller: getAllUser', 10);
+                    } else if (check.isEmpty(result)) {
+                        reject('No User Found','No User Found', 'User Controller: getAllUser', 10)
+                    } else {
+                        resolve(result);
+                    }
+                })
+                })
+            }
+        
+            friends(userId)
+            .then(findFriends)
+            .then((result)=>{
+                let apiResponse = response.generate(false, 'All Friends Details Found', 200, result)
+                // res.send(apiResponse);
+                socket.emit("FriendListSuccess",apiResponse);
+            })
+            .catch((err, msg, origin, imp) => {
+                logger.error(msg, origin, imp);
+                let apiResponse = response.generate(true, err, 400, null);
+                // res.send(apiResponse);
+                socket.emit("FriendListFailure",apiResponse);
+            })
         })
 
-        socket.on('set-user',(authToken) => {
-
-            console.log("set-user called")
-            tokenLib.verifyClaimWithoutSecret(authToken,(err,user)=>{
-                if(err){
-                    socket.emit('auth-error', { status: 500, error: 'Please provide correct auth token' })
-                }
-                else{
-
-                    console.log("user is verified..setting details");
-                    let currentUser = user.data;
-                    // setting socket user id 
-                    socket.userId = currentUser.userId
-                    let fullName = `${currentUser.firstName} ${currentUser.lastName}`
-                    console.log(`${fullName} is online`);
-
-
-                    let userObj = {userId:currentUser.userId,fullName:fullName}
-                    allOnlineUsers.push(userObj)
-                    console.log(allOnlineUsers)
-
-                    // setting room name
-                    socket.room = 'edChat'
-                    // joining chat-group room.
-                    socket.join(socket.room)
-                    socket.to(socket.room).broadcast.emit('online-user-list',allOnlineUsers);
-
-                }
-
-
-            })
-          
-        }) // end of listening set-user event
-
-
-        socket.on('disconnect', () => {
-            // disconnect the user from socket
-            // remove the user from online list
-            // unsubscribe the user from his own channel
-
-            console.log("user is disconnected");
-            // console.log(socket.connectorName);
-            console.log(socket.userId);
-
-
-            var removeIndex = allOnlineUsers.map(function(user) { return user.userId; }).indexOf(socket.userId);
-            allOnlineUsers.splice(removeIndex,1)
-            console.log(allOnlineUsers)
-
-            socket.to(socket.room).broadcast.emit('online-user-list',allOnlineUsers);
-            socket.leave(socket.room)
-
-
-            
-
+        socket.on('getUsers',(userId)=>{
+            let friends=(userId)=>{
+                return new Promise((resolve,reject)=>{
+                    friendsController.usersFriend(userId,(err,response)=>{
+                        if(err){
+                            reject('friends not found',err.message, 'userController:getUserDetails', 10);
+                        }
+                        else{
+                            let arr=response.concat(userId);
+                            resolve(arr);
+                        }
+                    })
+                })
+            }
+            let findUsers=(arr)=>{
+                return new Promise((resolve,reject)=>{
+                UserModel.find({'userId':{$nin:arr}})
+                .select(' -__v -_id -password -otp -otpExpiry')
+                .populate('friendList')
+                .lean()
+                .exec((err, result) => {
+                    if (err) {
+                        reject('Failed To Find User Details',err.message, 'User Controller: getAllUser', 10);
+                    } else if (check.isEmpty(result)) {
+                        reject('No User Found','No User Found', 'User Controller: getAllUser', 10)
+                    } else {
+                        resolve(result)
+                    }
+                })
+                })
+            }
         
-
-
-        }) // end of on disconnect
-
-
-        socket.on('chat-msg', (data) => {
-            console.log("socket chat-msg called")
-            console.log(data);
-            data['chatId'] = shortid.generate()
-            console.log(data);
-
-            // event to save chat.
-            setTimeout(function(){
-                eventEmitter.emit('save-chat', data);
-
-            },2000)
-            myIo.emit(data.receiverId,data)
-
-        });
-
-        socket.on('typing', (fullName) => {
-            
-            socket.to(socket.room).broadcast.emit('typing',fullName);
-
-        });
-
-
-
+            friends(userId)
+            .then(findUsers)
+            .then((result)=>{
+                let apiResponse = response.generate(false, 'All User Details Found', 200, result)
+                console.log(apiResponse);
+                socket.emit("UsersListSuccess",apiResponse);
+            })
+            .catch((err, msg, origin, imp) => {
+                logger.error(msg, origin, imp);
+                let apiResponse = response.generate(true, err, 400, null);
+                socket.emit("UsersListFailure",apiResponse);
+            })
+        })
 
     });
 

@@ -21,6 +21,9 @@ app.use(cookieParser());
 // cookie-parser maybe omitted as it is part of express core now. https://stackoverflow.com/questions/27961320/when-should-i-use-cookie-parser-with-express-session
 app.use(routeLoggerMiddleware.logIp);
 
+app.use(express.static('./app/client'));
+//application level middleware to 
+
 //Bootstrap models
 fs.readdirSync(modelsPath).forEach(function (file) {
   if (~file.indexOf('.js')) require(modelsPath + '/' + file)
@@ -43,6 +46,12 @@ server.listen(appConfig.port);
 server.on('error', onError);
 server.on('listening', onListening);
 // end server listening code
+
+// socket io connection handler 
+const socketLib = require("./app/libs/socketLib");
+const socketServer = socketLib.setServer(server);
+
+// end socketio connection handler
 
 /**
  * Event listener for HTTP server "error" event.
