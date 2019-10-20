@@ -62,16 +62,25 @@ const groupSchema=new Schema({
         type:String,
         default:'',
     },
-    contributors:{
-        type:[],
-        required:true,
-    },
+    contributors:[
+        {
+            type:Schema.Types.ObjectId,
+            ref:'User',
+            unique:true
+        }
+    ],
+    
+    // contributors:{
+    //     type:[],
+    //     required:true,
+    // },
     timeCreated:{
         type:time,
         default:'',
     },
     creator:{
-        type:String,
+        type:Schema.Types.ObjectId,
+        ref:'User',
         required:true,
     },
     expenses:{

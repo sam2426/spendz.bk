@@ -16,4 +16,6 @@ module.exports.setRouter=(app)=>{
     app.post(`${baseUrl}/createExpense`,expenseController.createExpense);
 
     app.post(`${baseUrl}/editExpense`,expenseController.editExpense);
+
+    app.get(`${baseUrl}/:userId/getGroup`,expenseController.getGroup);
 }

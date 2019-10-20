@@ -10,64 +10,171 @@ const check = require('../libs/checkLib');
 const logger = require('./../libs/loggerLib');
 
 let createExpenseGroup=(req,res)=>{
-    if(check.isEmpty(req.body.groupName)){
-        logger.error('Group not named', 'createExpenseGroup', 70);
-        let apiResponse = response.generate(true, 'GroupName not entered', 400, null);
-        res.send(apiResponse);
-    }
-    else{
-        let newGroup= new ExpenseModel({
-            groupId:'G-'+shortid.generate(),
-            groupName:req.body.groupName,
-            contributors:req.body.userId,
-            timeCreated:time.now(),
-            creator:req.body.userId
+
+    let findUser=()=>{
+        return new Promise((resolve,reject)=>{
+            UserModel.findOne({'userId':req.body.userId})
+            .exec((err,result)=>{
+                if(err){
+                    reject('Id not found');
+                }else if(check.isEmpty(result)){
+                    reject('Id Not Found');
+                }else{
+                    resolve(result._id);
+                }
+            })
         })
-        newGroup.save((err,group)=>{
-            if(err){
-                logger.error('Group not saved', 'createExpenseGroup', 20);
-                let apiResponse = response.generate(true, 'Group not saved', 400, null);
-                res.send(apiResponse);
-            }else{
-                logger.info('Group created', 'createExpenseGroup', 00);
-                let apiResponse = response.generate(false, 'Group created', 200, group);
-                res.send(apiResponse);
+    }
+
+    let createGroup=(userId)=>{
+        return new Promise((resolve,reject)=>{
+            if(check.isEmpty(req.body.groupName)){
+                reject('Group already present');
+            }
+            else{
+                let newGroup= new ExpenseModel({
+                    groupId:'G-'+shortid.generate(),
+                    groupName:req.body.groupName,
+                    contributors:userId,
+                    timeCreated:time.now(),
+                    creator:userId
+                })
+                newGroup.save((err,group)=>{
+                    if(err){
+                        reject('Group Not Created');
+                    }else{
+                        resolve(group);
+                    }
+                })
             }
         })
     }
+
+    let updateUserData=(groupData)=>{
+        return new Promise((resolve,reject)=>{
+            UserModel.findOne({userId:req.body.userId},(err,response)=>{
+                if(err){
+                    console.log(err);
+                    reject('User not found');
+                }else if(check.isEmpty(response)){
+                    reject('User not found');
+                }else{
+                    response.groups.push(groupData._id)
+                    response.save((err,data)=>{
+                        if(err){
+                            console.log(err);
+                            reject(err);
+                        }else{
+                            resolve(groupData);
+                        }
+                    })
+                }
+            })
+        })
+    }
+    findUser(req,res)
+    .then(createGroup)
+    .then(updateUserData)
+    .then((resolve)=>{
+        logger.info('Group created', 'createExpenseGroup', 00);
+        let apiResponse = response.generate(false, 'Group created', 200, resolve);
+        res.send(apiResponse);
+    })
+    .catch((err)=>{
+        logger.error(err, 'createExpenseGroup', 20);
+        let apiResponse = response.generate(true, 'Group not saved', 400, null);
+        res.send(apiResponse);
+    })
+    
 }
 
 let addMembersToGroup=(req,res)=>{
+    //first getting group details then adding multiple members to group
+    let membersId=[];
     let findGroup = ()=>{
         return new Promise((resolve,reject)=>{
             ExpenseModel.findOne({groupId:req.body.groupId}, (err,groupDetail)=>{
                 if (err){
-                    reject('Request Failed', err, 'expenseController:findGroup', 10);
+                    reject('Request Failed', err, 'AddMembersToGroup:findGroup', 10);
                 }else{
+                    console.log(groupDetail);
                     resolve(groupDetail);
                 }
             })
         })
     }
 
-    let addMember=(groupDetail)=>{
+    let findUserId=(groupDetail)=>{
         return new Promise((resolve,reject)=>{
-            groupDetail.contributors.push(req.body.userId)
-            groupDetail.save((err,group)=>{
+            membersId= req.body.members.split(',');//here an array of mebers is to be passed from frontend.
+            UserModel.find({'userId':{'$in':membersId}})
+            .select('_id').lean().exec((err,result)=>{
                 if(err){
-                    reject('Group not saved','Group not saved', 'createExpenseGroup', 20);
+                    reject('Id not found','Group not saved', 'AddMembersToGroup:findUser', 20);
                 }else{
-                    resolve(group, 'Member Added', 'addGroupMember', 00);
+                    console.log("this is result",result)
+                    let pass={
+                        groupDetail:groupDetail,
+                        userId:result
+                    }
+                    resolve(pass);
+                }
+            })
+        })
+    }
+
+    let addMember=(retrievedDetail)=>{
+        return new Promise((resolve,reject)=>{
+            let memberIds= retrievedDetail.userId;
+            groupDetail=retrievedDetail.groupDetail;
+            let membersToAdd=[];
+            for(M in memberIds){
+                if(!groupDetail.contributors.includes(memberIds[M]._id)){
+                    console.log(memberIds[M]._id);
+                    membersToAdd.push(memberIds[M]._id);
+                }
+            }
+                console.log("memberto add ",membersToAdd);
+                // groupDetail.contributors.push(membersId[M])
+                
+                groupDetail.contributors=groupDetail.contributors.concat(membersToAdd)
+                groupDetail.save((err,group)=>{
+                if(err){
+                    reject('Group not saved',err, 'AddMembersToGroup', 20);
+                }else{
+                    console.log("group",group);
+                    resolve(group);
+                }
+            })            
+        })
+    }
+//fetch and update users who are in the array but, group.id is not associated with them. 
+    let updateUserData=(groupData)=>{
+        return new Promise((resolve,reject)=>{
+            UserModel.updateMany({
+                userId:{"$in":membersId}, 
+                groups:{"$ne":groupData._id}
+            },{
+                $push:{groups:groupData._id}
+            },(err,response)=>{
+                if (err) {
+                    reject('Group not saved', err, 'AddMembersToGroup', 20);
+                } else if (response.nModified === 0){
+                    resolve(groupData,'Id Not Found','AddMembersToGroup',20);
+                } else {
+                    resolve(groupData,'Members Added','AddMembersToGroup',00);
                 }
             })
         })
     }
 
     findGroup(req,res)
+    .then(findUserId)
     .then(addMember)
-    .then((resolve,msg,origin,imp) => {
+    .then(updateUserData)
+    .then((data,msg,origin,imp) => {
         logger.info(msg,origin,imp);
-        let apiResponse = response.generate(false, msg, 200, resolve);
+        let apiResponse = response.generate(false,'user found',200,data);
         res.send(apiResponse);
     })
     .catch((err, msg, origin, imp) => {
@@ -216,10 +323,34 @@ let editExpense = (req, res) => {
     });// end user model update
 }
 
+let getUserGroup=(req,res)=>{
+
+    UserModel.find({'userId':req.params.userId})
+    .select('userId -_id')
+    .populate('groups')
+    .populate('contributors')
+    .lean().exec((err,result)=>{
+        if (err) {
+            logger.error(err.message, 'ExpenseController: getGroups', 10);
+            let apiResponse = response.generate(true, 'Failed To Find Groups', 400, null);
+            res.send(apiResponse);
+        } else if (check.isEmpty(result)) {
+            logger.error("No Groups Found", 'ExpenseController: getGroups', 10);
+            let apiResponse = response.generate(true, 'No Groups To Show', 400, null);
+            res.send(apiResponse);
+        } else {
+            logger.info("No Groups Found", 'ExpenseController: getGroups', 10);
+            let apiResponse = response.generate(false, 'Groups Populated', 200, result[0].groups);
+            res.send(apiResponse);
+        }
+    })
+}
+
 module.exports={
     createExpenseGroup:createExpenseGroup,
     addGroupMember:addMembersToGroup,
     getExpenses:getExpenseGroup,
     createExpense:createExpense,
-    editExpense:editExpense
+    editExpense:editExpense,
+    getGroup:getUserGroup
 }

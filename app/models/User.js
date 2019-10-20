@@ -57,10 +57,17 @@ const userSchema = new Schema({
         ref:'Friends',
         unique:true,
     },
-    groups:{
-        type:[Schema.Types.ObjectId],
-        ref:'SpendGrp'
-    }
+    groups:[
+        {
+            type:Schema.Types.ObjectId,
+            ref:'SpendGrp',
+            unique:true
+        }
+    ]    
+    //groups:{                              xxxxxx    this is wrong way to define schema of array of objects
+    //     type:[Schema.Types.ObjectId],
+    //     ref:'SpendGrp'
+    // }
 })
 
 
