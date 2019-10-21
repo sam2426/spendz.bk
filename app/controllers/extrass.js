@@ -263,3 +263,22 @@ Promise.all(promises)
             
     //     })
     // }
+
+    let updateUserData=(groupData)=>{
+        return new Promise((resolve,reject)=>{
+            UserModel.updateMany({
+                userId:{"$in":membersId}, 
+                groups:{"$ne":groupData._id}
+            },{
+                $push:{groups:groupData._id}
+            },(err,response)=>{
+                if (err) {
+                    reject(err, 'Group not saved', 'AddMembersToGroup', 20);
+                } else if (response.nModified === 0){
+                    resolve(groupData,'Id Not Found','AddMembersToGroup',20);
+                } else {
+                    resolve(groupData,'Members Added','AddMembersToGroup',00);
+                }
+            })
+        })
+    }

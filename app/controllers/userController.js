@@ -349,9 +349,9 @@ let resetPassword = (req, res) => {
             let condition = { email: req.body.email, otp: req.body.otp, otpExpiry: { $gt: time.now().format() } }
             UserModel.findOne(condition, (err, result) => {
                 if (err) {
-                    reject('OTP Discarded', err.message, 'userController:validateOTP', 10);
+                    reject('OTP Discarded', err, 'userController:validateOTP', 10);
                 } else if (check.isEmpty(result)) {
-                    reject('OTP Discarded', err.message, 'userController:validateOTP', 10);
+                    reject('OTP Discarded', err, 'userController:validateOTP', 10);
                 } else {
                     resolve(req)
                 }
