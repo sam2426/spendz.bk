@@ -186,7 +186,10 @@ let addMembersToGroup=(req,res)=>{
 }
 
 let getExpenseGroup=(req,res)=>{
-    ExpenseModel.find({userId:req.body.userId},(err,result)=>{
+    console.log("getting expenses");
+    ExpenseModel.find({groupId:req.params.groupId})
+    .populate('contributors', 'firstName lastName userId -_id') //for populated part specify the required fields in second parameter.
+    .lean().exec((err,result)=>{
         if (err) {
             logger.error(err.message, 'expenseController: getexpenses', 10);
             let apiResponse = response.generate(true, `Unexpected Error Occurred`, 500, null);
@@ -196,6 +199,7 @@ let getExpenseGroup=(req,res)=>{
             res.send(apiResponse);
         } else {
             let apiResponse = response.generate(false, 'Expenses Found', 200, result);
+            console.log(result);
             res.send(apiResponse);
         }
     })
@@ -328,7 +332,6 @@ let getUserGroup=(req,res)=>{
     UserModel.find({'userId':req.params.userId})
     .select('userId -_id')
     .populate('groups')
-    .populate('contributors')
     .lean().exec((err,result)=>{
         if (err) {
             logger.error(err.message, 'ExpenseController: getGroups', 10);
@@ -341,6 +344,7 @@ let getUserGroup=(req,res)=>{
         } else {
             logger.info("No Groups Found", 'ExpenseController: getGroups', 10);
             let apiResponse = response.generate(false, 'Groups Populated', 200, result[0].groups);
+            console.log(result[0].groups);
             res.send(apiResponse);
         }
     })

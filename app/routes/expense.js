@@ -9,13 +9,14 @@ module.exports.setRouter=(app)=>{
 
     app.post(`${baseUrl}/createGroup`,expenseController.createExpenseGroup);
 
+    app.get(`${baseUrl}/:userId/getGroup`,expenseController.getGroup);
+
     app.post(`${baseUrl}/addGroupMember`,expenseController.addGroupMember);
 
-    app.post(`${baseUrl}/getExpense`,expenseController.getExpenses);
+    app.get(`${baseUrl}/:groupId/getExpense`,expenseController.getExpenses);
 
     app.post(`${baseUrl}/createExpense`,expenseController.createExpense);
 
     app.post(`${baseUrl}/editExpense`,expenseController.editExpense);
 
-    app.get(`${baseUrl}/:userId/getGroup`,expenseController.getGroup);
 }
