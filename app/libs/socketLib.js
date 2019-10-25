@@ -33,6 +33,7 @@ let setServer = (server) => {
 
         //eventEmitter to get the users who are not friends
         eventEmitter.on('findUsersEvent',(userId)=>{
+            let id='UsersListSuccess'+userId;
             let friends = (userId) => {
                 return new Promise((resolve, reject) => {
                     friendsController.usersFriend(userId, (err, response) => {
@@ -71,7 +72,7 @@ let setServer = (server) => {
                 .then((result) => {
                     let apiResponse = response.generate(false, 'All User Details Found', 200, result)
                     // console.log(apiResponse);
-                    socket.emit("UsersListSuccess", apiResponse);
+                    socket.emit(id, apiResponse);
                 })
                 .catch((err, msg, origin, imp) => {
                     logger.error(msg, origin, imp);
@@ -80,10 +81,10 @@ let setServer = (server) => {
                         console.log('No users are there');
                         let result={};
                         let apiResponse = response.generate(false, 'No More Records', 300, result)
-                        socket.emit("UsersListSuccess", apiResponse);
+                        socket.emit(id, apiResponse);
                     }else{
                         let apiResponse = response.generate(true, 'Error Occured', 400, null);
-                        socket.emit("UsersListSuccess", apiResponse);
+                        socket.emit(id, apiResponse);
                     }
                 })
         })
@@ -109,7 +110,8 @@ let setServer = (server) => {
                         if (err) {
                             reject('Request Failed', err, 'friendController:addRecord', 10);
                         } else {
-                            myIo.emit(data.receiverId,'Friend Request Received');
+                            let id='ReceiveRequest'+data.receiverId;
+                            myIo.emit(id,'Friend Request Received');
                             resolve();
                         }
                     })
@@ -179,6 +181,7 @@ let setServer = (server) => {
         })
 
         socket.on('getFriends', (userId) => {
+            let id='FriendListSuccess'+userId;
             console.log('getFriends running');
             let friends = (userId) => {
                 return new Promise((resolve, reject) => {
@@ -219,7 +222,7 @@ let setServer = (server) => {
                     let apiResponse = response.generate(false, 'All Friends Details Found', 200, result)
                     // res.send(apiResponse);
                     console.log('friendListSuccess gtyuij');
-                    socket.emit("FriendListSuccess", apiResponse);
+                    socket.emit(id, apiResponse);
                 })
                 .catch((err, msg, origin, imp) => {
                     logger.error(msg, origin, imp);
@@ -234,16 +237,157 @@ let setServer = (server) => {
                         console.log('No users are there');
                         let result={};
                         let apiResponse = response.generate(false, 'No More Records', 300, result);
-                        socket.emit("FriendListSuccess", apiResponse);
+                        socket.emit(id, apiResponse);
                     }else{
                         let apiResponse = response.generate(true, 'Error Occured', 400, null);
-                        socket.emit("FriendListSuccess", apiResponse);
+                        socket.emit(id, apiResponse);
                     }
                     
                 })
         })
 
+        socket.on('deleteFriendRequest',(data)=>{
+            
+            let deleteFromReceiver = () => {
+                return new Promise((resolve, reject) => {
+                    deleteId(data.senderId, data.receiverId, (err, reresponse) => {
+                        if (err) {
+                            reject('Request not processed', err, 'friendController:dbDeleteRecord', 10);
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
+            }
         
+            let deleteFromSender = () => {
+                return new Promise((resolve, reject) => {
+                    deleteId(data.receiverId, data.senderId, (err, reresponse) => {
+                        if (err) {
+                            reject('Request not processed', err, 'friendController:dbDeleteRecord', 10);
+                        } else {
+                            let id='DeleteRequest'+data.receiverId;
+                            myIo.emit(id,'Friend delete Request Processed');
+                            resolve();
+                        }
+                    });
+                });
+            }
+        
+            let deleteId = (id1, id2, cb) => {
+                FriendsModel.findOne({ userId: id1 }, (err, userDetails) => {
+                    if (err) {
+                        return cb('Request not processed', null);
+                    }
+                    else {
+                        userDetails.allFriends = remove(userDetails.allFriends, 'friendId', id2);
+                        userDetails.save((err, updateResponse) => {
+                            if (err) {
+                                return cb(err, null);
+                            } else {
+                                return cb(null, updateResponse);
+                            }
+                        });
+                    }
+                });
+            }
+        
+            let remove = (array, key, value) => {
+                const index = array.findIndex(obj => obj[key] === value);
+                //ternary operator returns sliced array with key value removed, else if not found returns whole array as 
+                //at that time the index will be -1
+                return index >= 0 ? [
+                    ...array.slice(0, index),
+                    ...array.slice(index + 1)
+                ] : array;
+            }
+        
+            deleteFromReceiver(data)
+                .then(deleteFromSender)
+                .then(() => {
+                    // let apiResponse = response.generate(false, 'Request Deleted', 200, null);
+                    // res.send(apiResponse)
+                    let id='DeleteRequest'+data.senderId;
+                    myIo.emit(id,'Friend delete Request Processed');
+                    console.log("friend delete request processed");
+                })
+                .catch((err, msg, origin, imp) => {
+                    // logger.error(msg, origin, imp);
+                    // let apiResponse = response.generate(true, err, 400, null);
+                    // res.send(apiResponse);
+                    console.log("friend delete request error");
+                })
+        })
+
+        socket.on('acceptFriendRequest',(data)=>{
+            let acceptAtReceiver = (data) => {
+                return new Promise((resolve, reject) => {
+                    updateAcceptRequest(data.senderId, data.receiverId, (err, reresponse) => {
+                        if (err) {
+                            reject('Failed to process request', err, 'friendController:acceptRequest', 10);
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
+            }
+        
+            let acceptAtSender = () => {
+                return new Promise((resolve, reject) => {
+                    updateAcceptRequest(data.receiverId, data.senderId, (err, reresponse) => {
+                        if (err) {
+                            reject('Failed to process Request', err, 'friendController:acceptRequest', 10);
+                        } else {
+                            let id='AcceptRequest'+data.receiverId;
+                            myIo.emit(id,'Friend delete Request Processed');
+                            resolve();
+                        }
+                    });
+                });
+            }
+        
+            let updateAcceptRequest = (id1, id2, cb) => {
+                FriendsModel.findOne({ userId: id1 }, (err, userDetails) => {
+                    if (err) {
+                        return cb('Failed To process request', null);
+                    }
+                    else if (check.isEmpty(userDetails)) {
+                        return cb('Failed To process request', null);
+                    }
+                    else {
+                        const index = userDetails.allFriends.findIndex(obj => obj['friendId'] === id2);
+                        if (index >= 0) {
+                            userDetails.allFriends[index].friendSince = time.now();
+                            userDetails.save((err, updateResponse) => {
+                                if (err) {
+                                    return cb(err, null);
+                                } else {
+                                    return cb(null, updateResponse);
+                                }
+                            })
+                        } else {
+                            return cb('Unable to Process Request', null);
+                        }
+                    }
+                });
+            }
+        
+            acceptAtReceiver(data)
+                .then(acceptAtSender)
+                .then(() => {
+                    // let apiResponse = response.generate(false, 'Request Processed', 200, null);
+                    // res.send(apiResponse);
+                    let id='AcceptRequest'+data.senderId;
+                    myIo.emit(id,'Friend accept Request Processed');
+                    console.log("friend accept request processed");
+                })
+                .catch((err, msg, origin, imp) => {
+                    logger.error(msg, origin, imp);
+                    // let apiResponse = response.generate(true, err, 400, null);
+                    // res.send(apiResponse);
+                    console.log("friend accept request error");
+                });
+        })
 
     });
 
