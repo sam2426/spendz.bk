@@ -1,17 +1,21 @@
 const socketio = require('socket.io');
 const mongoose = require('mongoose');
 const shortid = require('shortid');
+const time = require('./../libs/timeLib');
 const logger = require('./loggerLib.js');
 const events = require('events');
 const eventEmitter = new events.EventEmitter();
 
 const UserModel = require('./../models/User');
 const FriendsModel = require('./../models/FriendList');
+const ExpenseModel =require('./../models/GroupList');
+const HistoryModel=require('./../models/expenseHistory');
 const friendsController = require('./../controllers/friendsController');
+
 
 const tokenLib = require("./tokenLib.js");
 const check = require("./checkLib.js");
-const response = require('./responseLib')
+const response = require('./responseLib');
 
 let setServer = (server) => {
 
@@ -22,6 +26,7 @@ let setServer = (server) => {
     let myIo = io.of('');
 
     myIo.on('connection', (socket) => {
+        //socket.removeAllListeners();
 
         console.log("on connection--functions are ready");
 
@@ -357,7 +362,7 @@ let setServer = (server) => {
                     else {
                         const index = userDetails.allFriends.findIndex(obj => obj['friendId'] === id2);
                         if (index >= 0) {
-                            userDetails.allFriends[index].friendSince = time.now();
+                            userDetails.allFriends[index].friendSince = time.now().format();
                             userDetails.save((err, updateResponse) => {
                                 if (err) {
                                     return cb(err, null);
@@ -391,6 +396,161 @@ let setServer = (server) => {
 
     });
 
+
+    let myGroupIo = io.of('/group');
+
+    myGroupIo.on('connection',(socket)=>{
+
+        console.log("###################################################");
+        console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+        console.log("on connection-- group functions are ready");
+
+        socket.on('createExpenseGroup',(data)=>{
+
+            //finding the object id of the owner/group creator
+            let findOwner=(data)=>{
+                return new Promise((resolve,reject)=>{
+                    UserModel.findOne({'userId':data.ownerId})
+                    .exec((err,result)=>{
+                        if(err){
+                            reject('Id not found');
+                        }else if(check.isEmpty(result)){
+                            reject('Id Not Found');
+                        }else{
+                            data.ownerId=result._id;  // here object id of owner found
+                            console.log('++++++++++++++++');
+                            console.log('object if of owner found', data)
+                            resolve(data);
+                        }
+                    })
+                })
+            }
+
+            let findContributors=(data)=>{
+                return new Promise((resolve,reject)=>{
+                    UserModel.find({'userId':{'$in':data.contributorIds}})
+                    .select('_id').lean().exec((err,result)=>{
+                        if(err){
+                            // reject('Id not found','Group not saved', 'AddMembersToGroup:findUser', 20);
+                            reject(err);
+                        }else{
+                            console.log("this is result of contributors ids",result)
+                            
+                            let finalArray=result.map(obj=>obj._id);  //result was [ { _id: 5db3f1daa7b30a1fc72f2cc1 } ], so need to convert.
+                            data.contributorObjIds=finalArray     //update user id to user _id
+                            
+                            console.log('object id of contributors found',data);
+                            resolve(data);
+                        }
+                    })
+                })
+
+            }
+            //create group and add the contributors.
+            let createGroup=(data)=>{
+                return new Promise((resolve,reject)=>{
+                    if(check.isEmpty(data.groupName)){
+                        reject('GroupId not Valid');
+                    }
+                    else{
+                        let newGroup= new ExpenseModel({
+                            groupId:'G-'+shortid.generate(),
+                            groupName:data.groupName,
+                            contributors:data.contributorObjIds,
+                            timeCreated:time.now().format(),
+                            creator:data.ownerId
+                        })
+                        newGroup.save((err,group)=>{
+                            if(err){
+                                reject(`Group Not Created ${err}`);
+                            }else{
+                                data.groupdata=group;
+                                console.log('====================================================');
+                                console.log("group created",data);
+                                resolve(data);
+                            }
+                        })
+                    }
+                })
+            }
+
+            let updateUserData= async (data)=>{
+                try{
+                    for(user of data.contributorIds){
+                        const res=await UserModel.findOne({'userId':user});
+                        res.groups.push(data.groupdata._id);
+                        const resSave=await res.save();
+                        let id='GroupCreated'+user;
+                        console.log('update****************************************XXsend to ',user);
+                        eventEmitter.emit('getGroup',user);    
+                    }
+
+                    return 1;
+                }
+                catch(e){
+                    throw e;
+                }
+            }
+
+
+            findOwner(data)
+            .then(findContributors)
+            .then(createGroup)
+            .then(updateUserData)
+            .then((resolve)=>{
+                logger.info('Group created', 'createExpenseGroup', 00);
+                let apiResponse = response.generate(false, 'Group created', 200, resolve);
+                console.log(apiResponse);
+            })
+            .catch((err)=>{
+                logger.error(err, 'createExpenseGroup', 20);
+                let apiResponse = response.generate(true, 'Group not saved', 400, null);
+                console.log('group creation failed-------------------',err);
+                // res.send(apiResponse);
+                let id='GroupCreated'+data.userId
+                socket.emit(id,'Group Creation failed');
+            })
+    
+            
+        })//create new group ends here.
+
+
+        // listening and emitting group details starts here.
+
+        socket.on('getUserGroup',(userId)=>{
+            eventEmitter.emit('getGroup',userId);
+        })
+
+        eventEmitter.on('getGroup',(userId)=>{
+            // UserModel.find({'userId':userId})
+            // .select('userId -_id')
+            // .populate('groups')
+            // .lean().exec((err,result)=>{
+            //     if (err) {
+            //         logger.error(err.message, 'ExpenseSocket: getGroups', 10);
+            //         let apiResponse = response.generate(true, 'Failed To Find Groups', 400, null);
+            //         let id='groupListSuccess'+userId;
+            //         myGroupIo.emit(id,apiResponse);
+            //     } else if (check.isEmpty(result)) {
+            //         logger.error("No Groups Found", 'ExpenseSocket: getGroups', 10);
+            //         let apiResponse = response.generate(true, 'No Groups To Show', 400, null);
+            //         let id='groupListSuccess'+userId;
+            //         myGroupIo.emit(id,apiResponse);
+            //     } else {
+            //         logger.info("Groups Found", 'ExpenseSocket: getGroups', 10);
+            //         let apiResponse = response.generate(false, 'Groups Populated', 200, result[0].groups);
+                    // console.log(result[0].groups);
+                    console.log('this is the socket id');
+                    console.log(socket.id);
+                                        
+                    let id='groupListSuccess'+userId;
+                    console.log(id);
+                    // myGroupIo.emit(id,apiResponse);
+                }
+        //     })
+        // })
+        )
+    })
 }
 
 module.exports = {

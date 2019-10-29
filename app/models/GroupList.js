@@ -46,6 +46,7 @@ const expenseSchema=new Schema({
     },
     expenseInitAt:{
         type:time,
+        default:'',
     },
     members:{
         type:[expenseMemberSchema]

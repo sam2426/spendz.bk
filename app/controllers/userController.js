@@ -40,7 +40,7 @@ let signUpFunction = (req, res) => {
             UserModel.findOne({ email: req.body.email })
                 .exec((err, retrievedUserdetails) => {
                     if (err) {
-                        reject('failed to create user', err.message, 'userController:createUser', 10);
+                        reject('failed to create user', err, 'userController:createUser', 10);
                     } else if (check.isEmpty(retrievedUserdetails)) {
                         console.log(req.body);
                         let newUser = new UserModel({
@@ -49,6 +49,7 @@ let signUpFunction = (req, res) => {
                             lastName: req.body.lastName || '',
                             gender: req.body.gender,
                             email: req.body.email.toLowerCase(),
+                            country:req.body.country,
                             password: passwordLib.hashpassword(req.body.password),
                             mobileNumber: req.body.mobileNumber,
                             createdOn: time.now().format(),
@@ -56,7 +57,9 @@ let signUpFunction = (req, res) => {
                         })
                         newUser.save((err, newUser) => {
                             if (err) {
-                                reject('Account not Created', err.message, 'userController:dbSaveUser', 20);
+                                console.log("++++++++++++++++++++++++++++++++++++++++++++++++")
+                                console.log("error is ",err);
+                                reject('Account not Created', err, 'userController:dbSaveUser', 20);
                             } else {
                                 let newUserObj = newUser.toObject();
                                 resolve(newUserObj);

@@ -29,8 +29,8 @@ const userSchema = new Schema({
         required: true
     },
     mobileNumber: {
-        type: Number,
-        default: 0
+        type: String,
+        default: ''
     },
     createdOn: {
         type: time,
@@ -51,6 +51,10 @@ const userSchema = new Schema({
     otpExpiry: {
         type: time,
         default: ''
+    },
+    country:{
+        type:String,
+        default:''
     },
     friendList:{
         type:Schema.Types.ObjectId,
