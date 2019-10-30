@@ -10,6 +10,7 @@ const routeLoggerMiddleware = require('./app/middlewares/routeLogger.js');
 const logger = require('./app/libs/loggerLib');
 
 
+
 const modelsPath = './app/models';
 const routesPath = './app/routes';
 
@@ -19,7 +20,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // it basically tells the system whether you want to use a simple algorithm for shallow parsing (i.e. false) or complex algorithm for deep parsing that can deal with nested objects (i.e. true).
 app.use(cookieParser());
 // cookie-parser maybe omitted as it is part of express core now. https://stackoverflow.com/questions/27961320/when-should-i-use-cookie-parser-with-express-session
-app.use(routeLoggerMiddleware.logIp);
+app.use(routeLoggerMiddleware.logIp);// includes cors headers
 
 app.use(express.static('./app/client'));
 //application level middleware to 
