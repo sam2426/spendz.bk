@@ -32,10 +32,6 @@ let setServer = (server) => {
 
         // socket.emit("verifyUser", "");
 
-        socket.on('join',(data)=>{
-            socket.join(data.user);
-        })
-
         socket.on('notifyFriend', (data) => {      //here the friendId is received to whom the message has to be sent.
 
             if (data.action === 'add') {
@@ -43,25 +39,20 @@ let setServer = (server) => {
                     message: 'Friend Request Received',
                     action: 'add'
                 }
-                // myIo.emit(data.receipient, response);
-                myIo.to(data.receipient).emit('userResponse',response);
+                myIo.emit(data.receipient, response);
             } else if (data.action === 'delete') {
                 let response = {
                     message: 'Friend Request Received',
                     action: 'delete'
                 }
-                console.log('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
-                console.log(socket.id);
-                // myIo.emit(data.receipient, response);
-                myIo.to(data.receipient).emit('userResponse',response);
+                myIo.emit(data.receipient, response);
             } else if (data.action === 'accept') {
                 let response = {
                     message: 'Friend Request Received',
                     action: 'accept'
                 }
                 console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-                // myIo.emit(data.receipient, response);
-                myIo.to(data.receipient).emit('userResponse',response);
+                myIo.emit(data.receipient, response);
             }
 
         })
