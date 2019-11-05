@@ -13,9 +13,9 @@ module.exports.setRouter=(app)=>{
 
     app.get(`${baseUrl}/:userId/details`, userController.getSingleUser);
 
-    // app.get(`${baseUrl}/:userId/allUsers`, userController.getAllUser);
+    app.get(`${baseUrl}/:userId/allUsers`, userController.getAllUser);
 
-    // app.get(`${baseUrl}/:userId/allFriends`, userController.getAllFriends);
+    app.get(`${baseUrl}/:userId/allFriends`, userController.getAllFriends);
 
     app.put(`${baseUrl}/:userId/edit`, userController.editUser);
 

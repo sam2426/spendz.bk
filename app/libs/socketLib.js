@@ -32,11 +32,45 @@ let setServer = (server) => {
 
         // socket.emit("verifyUser", "");
 
+        socket.on('join',(data)=>{
+            socket.join(data.user);
+        })
+
+        socket.on('notifyFriend', (data) => {      //here the friendId is received to whom the message has to be sent.
+
+            if (data.action === 'add') {
+                let response = {
+                    message: 'Friend Request Received',
+                    action: 'add'
+                }
+                // myIo.emit(data.receipient, response);
+                myIo.to(data.receipient).emit('userResponse',response);
+            } else if (data.action === 'delete') {
+                let response = {
+                    message: 'Friend Request Received',
+                    action: 'delete'
+                }
+                console.log('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
+                console.log(socket.id);
+                // myIo.emit(data.receipient, response);
+                myIo.to(data.receipient).emit('userResponse',response);
+            } else if (data.action === 'accept') {
+                let response = {
+                    message: 'Friend Request Received',
+                    action: 'accept'
+                }
+                console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+                // myIo.emit(data.receipient, response);
+                myIo.to(data.receipient).emit('userResponse',response);
+            }
+
+        })
+///////////////////////////////////////////////////////////////////////////////////////////////////////
         socket.on('getUsers', (userId) => {
             eventEmitter.emit('findUsersEvent',userId);
         })
 
-        //eventEmitter to get the users who are not friends
+        // eventEmitter to get the users who are not friends
         eventEmitter.on('findUsersEvent',(userId)=>{
             let id='UsersListSuccess'+userId;
             let friends = (userId) => {
@@ -393,6 +427,10 @@ let setServer = (server) => {
                     console.log("friend accept request error");
                 });
         })
+
+        socket.on('disconnect', function(){
+            console.log('user disconnected');
+          });
 
     });
 
