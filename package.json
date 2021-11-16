@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/sam2426/spendz.bk#readme",
   "dependencies": {
-    "aws-sdk": "^2.548.0",
+    "aws-sdk": "^2.814.0",
     "bcrypt": "^3.0.6",
     "body-parser": "^1.19.0",
     "cookie-parser": "^1.4.4",
